@@ -1,16 +1,20 @@
-import { renderNewGame } from './newGameView.js';
-import { renderHistory } from './historyView.js';
-import { renderPlayers } from './playersView.js';
+import { cloneTemplate, fillSlots } from '../utils/template.js';
 
-export function renderHome() {
-document.body.innerHTML = `
-<h1>Gestion de scores</h1>
-<button id="newGame">Nouvelle partie</button>
-<button id="history">Historique</button>
-<button id="players">Joueurs enregistrés</button>
-`;
+/**
+ * Render the home view
+ * @param {import('../types/types.js').Game[]} gamesInProgress
+ * @returns {DocumentFragment}
+ */
+export function renderHome(gamesInProgress) {
+  const frag = cloneTemplate('tpl-home');
 
-document.getElementById('newGame').onclick = renderNewGame;
-document.getElementById('history').onclick = renderHistory;
-document.getElementById('players').onclick = renderPlayers;
+  if (gamesInProgress.length > 0) {
+    const section = frag.querySelector('[data-slot="inProgressSection"]');
+    section.style.display = '';
+    fillSlots(frag, {
+      inProgressTitle: `Parties en cours (${gamesInProgress.length})`
+    });
+  }
+
+  return frag;
 }

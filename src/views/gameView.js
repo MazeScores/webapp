@@ -1,66 +1,45 @@
-import { renderHome } from './homeView.js';
+import { cloneTemplate, fillSlots } from '../utils/template.js';
 
-export function renderGame(game) {
-  document.body.innerHTML = `
-    <h2>${game.name}</h2>
+/**
+ * Render the game view
+ * @param {import('../types/types.js').Game} game
+ * @param {import('../types/types.js').GameModel} model
+ * @returns {DocumentFragment}
+ */
+export function renderGame(game, model) {
+  const isFinished = game.status === 'finished';
+  const frag = cloneTemplate('tpl-game');
 
-    <button id="addRound">Ajouter une manche</button>
-    <button id="back">Retour</button>
-
-    <div style="overflow:auto">
-      <table border="1" id="table"></table>
-    </div>
-  `;
-
-  document.getElementById('back').onclick = renderHome;
-
-  const table = document.getElementById('table');
-
-  function renderTable() {
-    const rounds = game.players[0]?.scores.length || 0;
-
-    table.innerHTML = `
-      <tr>
-        <th>Joueur</th>
-        ${Array.from({ length: rounds }).map((_, i) => `<th>M${i + 1}</th>`).join('')}
-        <th>Total</th>
-      </tr>
-    `;
-
-    game.players.forEach((p, playerIndex) => {
-      const total = p.scores.reduce((a, b) => a + b, 0);
-
-      table.innerHTML += `
-        <tr>
-          <td>${p.name}</td>
-          ${p.scores.map((s, roundIndex) => `
-            <td>
-              <input type="number"
-                     value="${s}"
-                     data-player="${playerIndex}"
-                     data-round="${roundIndex}" />
-            </td>
-          `).join('')}
-          <td><strong>${total}</strong></td>
-        </tr>
-      `;
-    });
-  }
-
-  document.getElementById('addRound').onclick = () => {
-    game.players.forEach(p => p.scores.push(0));
-    renderTable();
-  };
-
-  table.addEventListener('input', (e) => {
-    if (e.target.tagName !== 'INPUT') return;
-
-    const p = e.target.dataset.player;
-    const r = e.target.dataset.round;
-    game.players[p].scores[r] = Number(e.target.value);
-
-    renderTable();
+  fillSlots(frag, {
+    gameName: game.name,
+    gameModel: model?.label || game.modelId
   });
 
-  renderTable();
+  const statusEl = frag.querySelector('[data-slot="gameStatus"]');
+  statusEl.className = `game-status ${game.status}`;
+  statusEl.textContent = isFinished ? 'Terminée' : 'En cours';
+
+  if (!isFinished) {
+    // Show the classement button
+    frag.querySelector('[data-action="showRanking"]').style.display = '';
+
+    // Add finish button
+    const actionsEl = frag.querySelector('[data-slot="gameActions"]');
+    const finishBtn = document.createElement('button');
+    finishBtn.type = 'button';
+    finishBtn.className = 'btn danger';
+    finishBtn.dataset.action = 'finishGame';
+    finishBtn.textContent = 'Terminer la partie';
+    actionsEl.appendChild(finishBtn);
+  }
+
+  return frag;
+}
+
+/**
+ * Render the game error view
+ * @returns {DocumentFragment}
+ */
+export function renderGameError() {
+  return cloneTemplate('tpl-game-error');
 }

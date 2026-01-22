@@ -1,27 +1,27 @@
-import { getPlayers, addPlayer, removePlayer } from '../services/playerService.js';
-import { renderHome } from './homeView.js';
+import { cloneTemplate, fillSlots, fillList } from '../utils/template.js';
 
-export function renderPlayers() {
-const players = getPlayers();
-document.body.innerHTML = `
-<h2>Joueurs enregistrés</h2>
-<input id="playerName" placeholder="Nom" />
-<button id="add">Ajouter</button>
-<ul>${players.map(p => `<li>${p} <button data-name="${p}">X</button></li>`).join('')}</ul>
-<button id="home">Accueil</button>
-`;
+/**
+ * Render the players view
+ * @param {import('../types/types.js').Player[]} players
+ * @returns {DocumentFragment}
+ */
+export function renderPlayers(players) {
+  const frag = cloneTemplate('tpl-players');
 
-document.getElementById('add').onclick = () => {
-addPlayer(document.getElementById('playerName').value);
-renderPlayers();
-};
+  if (players.length === 0) {
+    const empty = cloneTemplate('tpl-empty-message');
+    fillSlots(empty, { message: 'Aucun joueur enregistré' });
+    fillList(frag, 'playersList', [empty.firstElementChild]);
+  } else {
+    const items = players.map(p => {
+      const item = cloneTemplate('tpl-player-item');
+      fillSlots(item, { playerName: p.name });
+      const el = item.firstElementChild;
+      el.dataset.id = p.id;
+      return el;
+    });
+    fillList(frag, 'playersList', items);
+  }
 
-document.querySelectorAll('button[data-name]').forEach(btn => {
-btn.onclick = () => {
-removePlayer(btn.dataset.name);
-renderPlayers();
-};
-});
-
-document.getElementById('home').onclick = renderHome;
+  return frag;
 }

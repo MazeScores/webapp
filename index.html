@@ -1,6 +1,347 @@
 <!DOCTYPE html>
-<html>
-  <body>
-    <script type="module" src="src/app.js"></script>
-  </body>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" href="./favicon.png" /> 
+  <title>MazeScores</title>
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- ==================== VIEW TEMPLATES ==================== -->
+
+  <!-- HOME VIEW -->
+  <template id="tpl-home">
+    <div class="view home-view">
+      <header class="view-header">
+        <div class="header-info">
+          <h1>MazeScores</h1>
+          <p class="subtitle">Gestion de scores de jeux de société</p>
+        </div>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <nav class="main-nav">
+        <button type="button" class="nav-btn primary" data-action="newGame">
+          <span class="btn-icon">+</span>
+          Nouvelle partie
+        </button>
+        <button type="button" class="nav-btn" data-action="history">
+          Historique
+        </button>
+        <button type="button" class="nav-btn" data-action="players">
+          Joueurs
+        </button>
+        <button type="button" class="nav-btn" data-action="models">
+          Modèles de jeux
+        </button>
+        <button type="button" class="nav-btn" data-action="options">
+          Options
+        </button>
+      </nav>
+
+      <section class="in-progress-section" data-slot="inProgressSection" style="display:none">
+        <h2 data-slot="inProgressTitle"></h2>
+        <div class="games-list" data-list="gamesInProgress"></div>
+      </section>
+    </div>
+  </template>
+
+  <!-- PLAYERS VIEW -->
+  <template id="tpl-players">
+    <div class="view players-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <h1>Joueurs enregistrés</h1>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <form class="add-player-form" data-action="addPlayerForm">
+        <input type="text" data-slot="playerNameInput" placeholder="Nom du nouveau joueur" required />
+        <button type="submit" class="btn primary">Ajouter</button>
+      </form>
+
+      <div class="players-list" data-list="playersList"></div>
+    </div>
+  </template>
+
+  <!-- NEW GAME VIEW -->
+  <template id="tpl-newGame">
+    <div class="view new-game-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <h1>Nouvelle partie</h1>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <form class="new-game-form" data-action="newGameForm">
+        <div class="form-group">
+          <label for="model">Modèle de jeu</label>
+          <select data-slot="modelSelect" required></select>
+          <p class="model-description" data-slot="modelDescription"></p>
+        </div>
+
+        <div class="form-group">
+          <label for="name">Nom de la partie</label>
+          <input type="text" data-slot="nameInput" placeholder="Nouvelle partie" />
+        </div>
+
+        <div class="form-group" data-slot="playerSelectorContainer"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn secondary" data-action="cancel">Annuler</button>
+          <button type="submit" class="btn primary">Créer la partie</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <!-- GAME VIEW -->
+  <template id="tpl-game">
+    <div class="view game-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <div class="header-info">
+          <div class="game-name-row">
+            <h1 data-slot="gameName"></h1>
+            <button type="button" class="edit-name-btn" data-action="editGameName" title="Renommer">&#9998;</button>
+          </div>
+          <span class="game-model" data-slot="gameModel"></span>
+          <span data-slot="gameStatus"></span>
+        </div>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <div class="game-content" data-slot="gameContent"></div>
+
+      <div class="game-actions" data-slot="gameActions">
+        <button type="button" class="btn primary" data-action="showRanking" style="display:none">Classement</button>
+        <button type="button" class="btn secondary" data-action="backToGame" style="display:none">Retour au jeu</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- GAME ERROR VIEW -->
+  <template id="tpl-game-error">
+    <div class="view error-view">
+      <h1>Partie introuvable</h1>
+      <p>La partie demandée n'existe pas.</p>
+      <button type="button" data-action="backHome">Retour à l'accueil</button>
+    </div>
+  </template>
+
+  <!-- HISTORY VIEW -->
+  <template id="tpl-history">
+    <div class="view history-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <h1>Historique des parties</h1>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <div class="filter-container" data-slot="filterContainer"></div>
+
+      <div class="games-list" data-list="gamesList"></div>
+    </div>
+  </template>
+
+  <!-- MODELS VIEW -->
+  <template id="tpl-models">
+    <div class="view models-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <h1>Modèles de jeux</h1>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+
+      <div class="models-list" data-list="modelsList"></div>
+    </div>
+  </template>
+
+  <!-- OPTIONS VIEW -->
+  <template id="tpl-options">
+    <div class="view options-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" data-action="back">&larr;</button>
+        <h1>Options</h1>
+        <div class="header-actions" data-slot="headerActions"></div>
+      </header>
+      <div class="options-list">
+        <div class="option-card">
+          <h3>Thème</h3>
+          <div class="theme-options">
+            <button type="button" class="theme-option" data-action="themeLight">Clair</button>
+            <button type="button" class="theme-option" data-action="themeDark">Sombre</button>
+            <button type="button" class="theme-option" data-action="themeSystem">Système</button>
+          </div>
+        </div>
+        <div class="option-card">
+          <h3>Réinitialiser les données</h3>
+          <p class="option-description">Supprimer les données stockées sur cet appareil</p>
+          <div class="reset-buttons">
+            <button type="button" class="btn danger" data-action="resetAll">Supprimer toutes les données</button>
+            <button type="button" class="btn secondary" data-action="resetGames">Supprimer l'historique des parties</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ==================== COMPONENT TEMPLATES ==================== -->
+
+  <!-- GAME CARD -->
+  <template id="tpl-game-card">
+    <div class="game-card">
+      <div class="card-header">
+        <h3 class="card-title" data-slot="cardTitle"></h3>
+        <span data-slot="cardBadge"></span>
+      </div>
+
+      <div class="card-info">
+        <span class="card-model" data-slot="cardModel"></span>
+        <span class="card-date" data-slot="cardDate"></span>
+      </div>
+
+      <div class="card-players" data-list="cardPlayers"></div>
+
+      <div class="card-actions">
+        <button type="button" class="card-btn view-btn" data-action="viewGame" data-slot="viewBtnLabel"></button>
+        <button type="button" class="card-btn delete-btn" data-action="deleteGame" style="display:none">Supprimer</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- GAME CARD - PLAYER SCORE LINE -->
+  <template id="tpl-game-card-player">
+    <div class="player-score">
+      <span class="player-name" data-slot="playerName"></span>
+      <span class="player-points" data-slot="playerPoints"></span>
+    </div>
+  </template>
+
+  <!-- GAME CARD - MORE PLAYERS -->
+  <template id="tpl-game-card-more">
+    <div class="more-players" data-slot="moreText"></div>
+  </template>
+
+  <!-- PLAYER ITEM (for players view) -->
+  <template id="tpl-player-item">
+    <div class="player-item">
+      <span class="player-name" data-slot="playerName"></span>
+      <div class="player-actions">
+        <button type="button" class="edit-btn" data-action="editPlayer" title="Modifier">Modifier</button>
+        <button type="button" class="delete-btn" data-action="deletePlayer" title="Supprimer">Supprimer</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- MODEL CARD (for models view) -->
+  <template id="tpl-model-card">
+    <div class="model-card">
+      <h3 data-slot="modelLabel"></h3>
+      <p class="model-description" data-slot="modelDescription"></p>
+      <div class="model-info">
+        <span class="model-players" data-slot="modelPlayers"></span>
+        <span class="model-type" data-slot="modelType"></span>
+      </div>
+      <div class="model-fields" data-list="modelFields" style="display:none"></div>
+    </div>
+  </template>
+
+  <!-- MODEL FIELD TAG -->
+  <template id="tpl-field-tag">
+    <span class="field-tag" data-slot="fieldTag"></span>
+  </template>
+
+  <!-- FILTER BAR -->
+  <template id="tpl-filter-bar">
+    <div class="filter-bar">
+      <div class="filter-group" data-slot="modelFilterGroup" style="display:none">
+        <label>Jeu</label>
+        <select data-action="filterModel">
+          <option value="">Tous les jeux</option>
+        </select>
+      </div>
+
+      <div class="filter-group" data-slot="playerFilterGroup" style="display:none">
+        <label>Joueur</label>
+        <select data-action="filterPlayer">
+          <option value="">Tous les joueurs</option>
+        </select>
+      </div>
+
+      <button type="button" class="clear-filters-btn" data-action="clearFilters" disabled>
+        Effacer filtres
+      </button>
+    </div>
+  </template>
+
+  <!-- PLAYER SELECTOR -->
+  <template id="tpl-player-selector">
+    <div class="player-selector">
+      <div class="player-count-control">
+        <label>Nombre de joueurs</label>
+        <div class="count-buttons">
+          <button type="button" data-action="decreaseCount">-</button>
+          <span class="count-display" data-slot="countDisplay"></span>
+          <button type="button" data-action="increaseCount">+</button>
+        </div>
+        <span class="count-limits" data-slot="countLimits"></span>
+      </div>
+
+      <div class="player-list" data-list="playerInputs"></div>
+    </div>
+  </template>
+
+  <!-- PLAYER SELECTOR - SINGLE INPUT -->
+  <template id="tpl-player-selector-input">
+    <div class="player-input">
+      <label data-slot="playerLabel"></label>
+      <select data-action="selectPlayer">
+        <option value="">-- Sélectionner --</option>
+        <option value="__new__">+ Nouveau joueur</option>
+      </select>
+      <input type="text" class="new-player-input" placeholder="Nom du nouveau joueur" style="display:none" data-action="newPlayerName" />
+    </div>
+  </template>
+
+  <!-- SCORE TABLE - ROUNDS -->
+  <template id="tpl-score-table-rounds">
+    <div class="score-table-container">
+      <button type="button" class="add-round-btn" data-action="addRound" style="display:none">+ Ajouter une manche</button>
+      <div class="table-wrapper">
+        <table class="score-table">
+          <thead>
+            <tr data-slot="tableHeader"></tr>
+          </thead>
+          <tbody data-list="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+
+  <!-- SCORE TABLE - CALCULATED -->
+  <template id="tpl-score-table-calculated">
+    <div class="score-table-container calculated">
+      <div class="table-wrapper">
+        <table class="score-table">
+          <thead>
+            <tr data-slot="tableHeader"></tr>
+          </thead>
+          <tbody data-list="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+
+  <!-- EMPTY MESSAGE -->
+  <template id="tpl-empty-message">
+    <p class="empty-message" data-slot="message"></p>
+  </template>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
 </html>
