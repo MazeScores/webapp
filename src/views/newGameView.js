@@ -1,107 +1,122 @@
-import { GameModels } from '../services/gameModelService.js';
-import { getPlayers } from '../services/playerService.js';
-import { saveGame } from '../services/gameService.js';
-import { renderGame } from './gameView.js';
-import { renderHome } from './homeView.js';
+/**
+ * @typedef {import('../types/types.js').GameModel} GameModel
+ */
 
+import { navigate } from '../router.js';
+import { getAllGameModels, getGameModel } from '../services/gameModelService.js';
+import { createGame } from '../services/gameService.js';
+import { addPlayer, getPlayerByName, isDefaultPlayerName } from '../services/playerService.js';
+import { createPlayerSelector } from '../components/PlayerSelector.js';
+import { createThemeToggle } from '../components/ThemeToggle.js';
+
+/**
+ * Render the new game view
+ */
 export function renderNewGame() {
-  const modelOptions = Object.values(GameModels)
-    .map(m => `<option value="${m.id}">${m.label}</option>`)
-    .join('');
+  const models = getAllGameModels();
+  const defaultModel = models[0];
+
+  let currentModelId = defaultModel.id;
+  let currentModel = defaultModel;
+  let playerCount = defaultModel.minPlayers;
 
   document.body.innerHTML = `
-    <h2>Nouvelle partie</h2>
+    <div class="view new-game-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" id="back">&larr;</button>
+        <h1>Nouvelle partie</h1>
+        <div class="header-actions" id="headerActions"></div>
+      </header>
 
-    <label>Modèle</label>
-    <select id="model">${modelOptions}</select>
+      <form class="new-game-form" id="newGameForm">
+        <div class="form-group">
+          <label for="model">Modèle de jeu</label>
+          <select id="model" required>
+            ${models.map(m => `<option value="${m.id}">${m.label}</option>`).join('')}
+          </select>
+          <p class="model-description" id="modelDescription">${defaultModel.description}</p>
+        </div>
 
-    <label>Nom de la partie</label>
-    <input id="name" />
+        <div class="form-group">
+          <label for="name">Nom de la partie</label>
+          <input type="text" id="name" placeholder="Nouvelle partie" />
+        </div>
 
-    <label>Nombre de joueurs</label>
-    <input id="players" type="number" />
+        <div class="form-group" id="playerSelectorContainer"></div>
 
-    <div id="playerList"></div>
-
-    <button id="create">Créer la partie</button>
-    <button id="back">Retour</button>
+        <div class="form-actions">
+          <button type="button" class="btn secondary" id="cancel">Annuler</button>
+          <button type="submit" class="btn primary">Créer la partie</button>
+        </div>
+      </form>
+    </div>
   `;
 
-  document.getElementById('back').onclick = renderHome;
-
   const modelSelect = document.getElementById('model');
-  const playersInput = document.getElementById('players');
-  const playerList = document.getElementById('playerList');
+  const modelDescription = document.getElementById('modelDescription');
+  const playerSelectorContainer = document.getElementById('playerSelectorContainer');
 
-  function renderPlayerInputs(count) {
-    const knownPlayers = getPlayers();
-
-    playerList.innerHTML = Array.from({ length: count }).map((_, i) => `
-      <div>
-        <label>Joueur ${i + 1}</label>
-        <select data-index="${i}">
-          <option value="Joueur ${i + 1}">Joueur ${i + 1}</option>
-          ${knownPlayers.map(p => `<option value="${p}">${p}</option>`).join('')}
-        </select>
-      </div>
-    `).join('');
-
-    bindPlayerSelects();
-    refreshPlayerSelects();
-  }
-
-  function bindPlayerSelects() {
-    document.querySelectorAll('[data-index]').forEach(sel => {
-      sel.onchange = refreshPlayerSelects;
+  function renderPlayerSelector() {
+    playerSelectorContainer.innerHTML = '';
+    const selector = createPlayerSelector({
+      count: playerCount,
+      minPlayers: currentModel.minPlayers,
+      maxPlayers: currentModel.maxPlayers,
+      onCountChange: (count) => {
+        playerCount = count;
+      }
     });
+    playerSelectorContainer.appendChild(selector);
   }
 
-  function refreshPlayerSelects() {
-    const selects = Array.from(document.querySelectorAll('[data-index]'));
-    const selectedValues = selects.map(s => s.value);
+  modelSelect.addEventListener('change', () => {
+    currentModelId = modelSelect.value;
+    currentModel = getGameModel(currentModelId);
+    modelDescription.textContent = currentModel.description;
+    playerCount = currentModel.minPlayers;
+    renderPlayerSelector();
+  });
 
-    selects.forEach(sel => {
-      Array.from(sel.options).forEach(opt => {
-        opt.disabled =
-          selectedValues.includes(opt.value) && opt.value !== sel.value;
-      });
-    });
-  }
+  document.getElementById('back').addEventListener('click', () => navigate('home'));
+  document.getElementById('cancel').addEventListener('click', () => navigate('home'));
+  document.getElementById('headerActions').appendChild(createThemeToggle());
 
-  modelSelect.onchange = () => {
-    const model = GameModels[modelSelect.value];
-    playersInput.min = model.minPlayers;
-    playersInput.max = model.maxPlayers;
-    playersInput.value = model.minPlayers;
-    renderPlayerInputs(model.minPlayers);
-  };
+  document.getElementById('newGameForm').addEventListener('submit', (e) => {
+    e.preventDefault();
 
-  playersInput.oninput = () => {
-    const value = Number(playersInput.value);
-    if (value >= playersInput.min && value <= playersInput.max) {
-      renderPlayerInputs(value);
+    const selector = playerSelectorContainer.querySelector('.player-selector');
+    const validation = selector?.validate?.();
+
+    if (!validation?.valid) {
+      alert(validation?.error || 'Erreur de validation');
+      return;
     }
-  };
 
-  // Initialisation
-  modelSelect.onchange();
+    const selectedPlayers = selector.getSelectedPlayers();
 
-  document.getElementById('create').onclick = () => {
-    const selects = document.querySelectorAll('[data-index]');
+    const players = selectedPlayers.map(p => {
+      if (isDefaultPlayerName(p.playerName)) {
+        return {
+          playerId: p.playerId,
+          playerName: p.playerName
+        };
+      }
 
-    const players = Array.from(selects).map(sel => ({
-      name: sel.value,
-      scores: []
-    }));
+      let existingPlayer = getPlayerByName(p.playerName);
+      if (!existingPlayer) {
+        existingPlayer = addPlayer(p.playerName);
+      }
+      return {
+        playerId: existingPlayer?.id || p.playerId,
+        playerName: p.playerName
+      };
+    });
 
-    const game = {
-      id: Date.now(),
-      model: modelSelect.value,
-      name: document.getElementById('name').value || 'Nouvelle partie',
-      players
-    };
+    const gameName = document.getElementById('name').value.trim();
+    const game = createGame(currentModelId, gameName, players);
 
-    saveGame(game);
-    renderGame(game);
-  };
+    navigate('game', { gameId: game.id });
+  });
+
+  renderPlayerSelector();
 }

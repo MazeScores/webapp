@@ -1,4 +1,17 @@
+/**
+ * @typedef {import('../types/types.js').Game} Game
+ */
+
 export const store = {
-    currentView: 'home',
-    currentGame: null
-    };
+  /** @type {string} */
+  currentView: 'home',
+
+  /** @type {Object} */
+  viewParams: {},
+
+  /** @type {Game|null} */
+  currentGame: null,
+
+  /** @type {number|null} */
+  saveTimeout: null
+};

@@ -1,66 +1,91 @@
-import { renderHome } from './homeView.js';
+/**
+ * @typedef {import('../types/types.js').Game} Game
+ */
 
-export function renderGame(game) {
+import { navigate } from '../router.js';
+import { getGame, finishGame, updateGame } from '../services/gameService.js';
+import { getGameModel } from '../services/gameModelService.js';
+import { createScoreTable } from '../components/ScoreTable.js';
+import { store } from '../state/store.js';
+import { createThemeToggle } from '../components/ThemeToggle.js';
+
+/**
+ * Render the game view
+ * @param {Object} params
+ * @param {string} params.gameId
+ */
+export function renderGame(params) {
+  const { gameId } = params;
+  const game = getGame(gameId);
+
+  if (!game) {
+    document.body.innerHTML = `
+      <div class="view error-view">
+        <h1>Partie introuvable</h1>
+        <p>La partie demandée n'existe pas.</p>
+        <button type="button" id="backHome">Retour à l'accueil</button>
+      </div>
+    `;
+    document.getElementById('backHome').addEventListener('click', () => navigate('home'));
+    return;
+  }
+
+  store.currentGame = game;
+  const model = getGameModel(game.modelId);
+  const isFinished = game.status === 'finished';
+
   document.body.innerHTML = `
-    <h2>${game.name}</h2>
+    <div class="view game-view">
+      <header class="view-header">
+        <button type="button" class="back-btn" id="back">&larr;</button>
+        <div class="header-info">
+          <h1>${game.name}</h1>
+          <span class="game-model">${model?.label || game.modelId}</span>
+          <span class="game-status ${game.status}">${isFinished ? 'Terminée' : 'En cours'}</span>
+        </div>
+        <div class="header-actions" id="headerActions"></div>
+      </header>
 
-    <button id="addRound">Ajouter une manche</button>
-    <button id="back">Retour</button>
+      <div class="game-content" id="gameContent"></div>
 
-    <div style="overflow:auto">
-      <table border="1" id="table"></table>
+      ${!isFinished ? `
+        <div class="game-actions">
+          <button type="button" class="btn danger" id="finishGame">Terminer la partie</button>
+        </div>
+      ` : ''}
     </div>
   `;
 
-  document.getElementById('back').onclick = renderHome;
+  document.getElementById('headerActions').appendChild(createThemeToggle());
 
-  const table = document.getElementById('table');
+  const gameContent = document.getElementById('gameContent');
+  const scoreTable = createScoreTable(game, {
+    editable: !isFinished,
+    sortByScore: true
+  });
+  gameContent.appendChild(scoreTable);
 
-  function renderTable() {
-    const rounds = game.players[0]?.scores.length || 0;
-
-    table.innerHTML = `
-      <tr>
-        <th>Joueur</th>
-        ${Array.from({ length: rounds }).map((_, i) => `<th>M${i + 1}</th>`).join('')}
-        <th>Total</th>
-      </tr>
-    `;
-
-    game.players.forEach((p, playerIndex) => {
-      const total = p.scores.reduce((a, b) => a + b, 0);
-
-      table.innerHTML += `
-        <tr>
-          <td>${p.name}</td>
-          ${p.scores.map((s, roundIndex) => `
-            <td>
-              <input type="number"
-                     value="${s}"
-                     data-player="${playerIndex}"
-                     data-round="${roundIndex}" />
-            </td>
-          `).join('')}
-          <td><strong>${total}</strong></td>
-        </tr>
-      `;
-    });
-  }
-
-  document.getElementById('addRound').onclick = () => {
-    game.players.forEach(p => p.scores.push(0));
-    renderTable();
-  };
-
-  table.addEventListener('input', (e) => {
-    if (e.target.tagName !== 'INPUT') return;
-
-    const p = e.target.dataset.player;
-    const r = e.target.dataset.round;
-    game.players[p].scores[r] = Number(e.target.value);
-
-    renderTable();
+  document.getElementById('back').addEventListener('click', () => {
+    if (store.saveTimeout) {
+      clearTimeout(store.saveTimeout);
+      updateGame(game.id, { players: game.players });
+    }
+    store.currentGame = null;
+    navigate('home');
   });
 
-  renderTable();
+  document.getElementById('finishGame')?.addEventListener('click', () => {
+    if (confirm('Terminer cette partie ? Les scores ne pourront plus être modifiés.')) {
+      finishGame(game.id);
+      renderGame({ gameId });
+    }
+  });
+
+  return () => {
+    if (store.saveTimeout) {
+      clearTimeout(store.saveTimeout);
+      updateGame(game.id, { players: game.players });
+    }
+    store.currentGame = null;
+  };
 }
